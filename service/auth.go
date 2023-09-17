@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/biskitsx/Server-Side-Session/database"
+	"github.com/biskitsx/Server-Side-Session/container"
 	"github.com/biskitsx/Server-Side-Session/model"
 )
 
@@ -12,15 +12,19 @@ type AuthService interface {
 	CheckUsername(username string) (*model.User, error)
 }
 type authService struct {
+	container container.Container
 }
 
-func NewAuthService() AuthService {
-	return &authService{}
+func NewAuthService(c container.Container) AuthService {
+	return &authService{
+		container: c,
+	}
 }
 
-func (authService) CheckUsername(username string) (*model.User, error) {
+func (service *authService) CheckUsername(username string) (*model.User, error) {
 	user := &model.User{}
-	database.Db.Where("username = ?", username).First(user)
+	db := service.container.GetDatabase()
+	db.Where("username = ?", username).First(user)
 	if user.Username != "" {
 		fmt.Println(user)
 		return user, nil

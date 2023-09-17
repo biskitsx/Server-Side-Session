@@ -3,6 +3,7 @@ package app
 import (
 	"log"
 
+	"github.com/biskitsx/Server-Side-Session/container"
 	"github.com/biskitsx/Server-Side-Session/controller"
 	"github.com/biskitsx/Server-Side-Session/database"
 	"github.com/gofiber/fiber/v2"
@@ -16,15 +17,15 @@ func SetupAndRunApp() error {
 	if err := godotenv.Load(); err != nil {
 		log.Fatal("Error loading .env file")
 	}
+
 	app := fiber.New()
-	if err := database.ConnectPostgres(); err != nil {
-		return err
-	}
-	database.CreateSessionStore()
+	db := database.ConnectPostgres()
+	session := database.CreateSessionStore()
+	container := container.NewContainer(db, session)
 
 	app.Use(cors.New(cors.Config{
 		AllowCredentials: true,
-		AllowOrigins:     "http://localhost:5173",
+		AllowOrigins:     "*",
 		AllowHeaders:     "Access-Control-Allow-Origin, Content-Type, Origin, Accept",
 	}))
 
@@ -36,13 +37,13 @@ func SetupAndRunApp() error {
 		return c.SendString("hello")
 	})
 
-	authController := controller.NewAuthController()
+	authController := controller.NewAuthController(container)
 	app.Post("/login", authController.Login)
 	app.Post("/register", authController.Register)
 	app.Post("/logout", authController.Logout)
 	app.Get("/healthcheck", authController.HealthCheck)
 
-	userController := controller.NewUserController()
+	userController := controller.NewUserController(container)
 	app.Get("/user", userController.GetUser)
 	app.Listen(":8080")
 

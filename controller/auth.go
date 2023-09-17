@@ -1,7 +1,7 @@
 package controller
 
 import (
-	"github.com/biskitsx/Server-Side-Session/database"
+	"github.com/biskitsx/Server-Side-Session/container"
 	"github.com/biskitsx/Server-Side-Session/model"
 	"github.com/biskitsx/Server-Side-Session/service"
 	"github.com/gofiber/fiber/v2"
@@ -16,11 +16,13 @@ type AuthController interface {
 
 type authController struct {
 	authService service.AuthService
+	container   container.Container
 }
 
-func NewAuthController() AuthController {
+func NewAuthController(c container.Container) AuthController {
 	return &authController{
-		authService: service.NewAuthService(),
+		authService: service.NewAuthService(c),
+		container:   c,
 	}
 }
 
@@ -51,7 +53,8 @@ func (controller *authController) Register(c *fiber.Ctx) error {
 		Password: userRegister.Password,
 	}
 
-	database.Db.Create(&user)
+	db := controller.container.GetDatabase()
+	db.Create(&user)
 	return c.JSON(user)
 }
 
@@ -70,8 +73,8 @@ func (controller authController) Login(c *fiber.Ctx) error {
 	if oldUser.Password != userLogin.Password {
 		return fiber.NewError(401, "invalid password")
 	}
-
-	sess, err := database.Store.Get(c)
+	store := controller.container.GetStore()
+	sess, err := store.Get(c)
 	if err != nil {
 		return fiber.NewError(401, "invalid password")
 	}
@@ -88,7 +91,8 @@ func (controller authController) Login(c *fiber.Ctx) error {
 	})
 }
 func (controller authController) Logout(c *fiber.Ctx) error {
-	sess, err := database.Store.Get(c)
+	store := controller.container.GetStore()
+	sess, err := store.Get(c)
 	if err != nil {
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{
 			"message": "logged out (no session)",
@@ -108,7 +112,9 @@ func (controller authController) Logout(c *fiber.Ctx) error {
 }
 
 func (controller authController) HealthCheck(c *fiber.Ctx) error {
-	sess, err := database.Store.Get(c)
+	store := controller.container.GetStore()
+
+	sess, err := store.Get(c)
 	if err != nil {
 		return fiber.NewError(401, "unauthorized ")
 	}
